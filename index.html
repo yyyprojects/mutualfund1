@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>An Interactive Guide to Mutual Funds</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Calm Neutrals -->
+    <!-- Application Structure Plan: The SPA is designed as a non-linear learning journey. A fixed sidebar navigation allows users to explore core themes in any order: The Big Idea, How It Works, Pros & Cons, Fund Types, The Active vs. Passive Debate, The Cost of Investing, and Getting Started. This structure breaks the dense report into manageable, thematic sections, which is more user-friendly than a long, linear document. The flow encourages exploration, with the interactive fee calculator serving as a central "wow" moment and the "Getting Started" section providing a clear, actionable conclusion. This prioritizes user engagement and comprehension over mimicking the report's chapter-based layout. -->
+    <!-- Visualization & Content Choices: 
+        - The Big Idea (Analogies): Goal: Inform. Method: Icon-driven cards (HTML/CSS). Interaction: Hover effects. Justification: Quickly establishes the core concept visually.
+        - Cost of Investing (Fee Impact): Goal: Change Perception. Method: Interactive line chart (Chart.js) with sliders. Interaction: User-controlled sliders dynamically update the chart and summary text. Justification: Transforms a static table into a powerful, personalized "what-if" tool, demonstrating the impact of fees.
+        - Fund Types: Goal: Compare/Guide. Method: Filter buttons. Interaction: Clicking a goal (e.g., "Growth") reveals the appropriate fund type. Justification: A task-oriented approach is more intuitive for beginners than financial jargon.
+        - Active vs. Passive: Goal: Compare. Method: Side-by-side text comparison with a summary bar chart (Chart.js). Interaction: None, focuses on the clarity of the data. Justification: The bar chart visually reinforces the report's key finding about passive fund outperformance.
+        - Pros & Cons: Goal: Compare. Method: Interactive cards. Interaction: Clicking a "Pro" card reveals its corresponding "Con." Justification: Makes the trade-offs explicit and memorable.
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #F8F7F4;
+            color: #1F2937;
+        }
+        .nav-link {
+            transition: all 0.2s ease-in-out;
+        }
+        .nav-link.active {
+            background-color: #14B8A6;
+            color: #ffffff;
+            font-weight: 600;
+        }
+        .nav-link:not(.active):hover {
+            background-color: #F1F5F9;
+        }
+        .content-section {
+            display: none;
+        }
+        .content-section.active {
+            display: block;
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .card {
+            background-color: #ffffff;
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            transition: all 0.3s ease;
+        }
+        .card:hover {
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -2px rgb(0 0 0 / 0.1);
+            transform: translateY(-4px);
+        }
+        .pro-con-card .back {
+            display: none;
+        }
+        .pro-con-card.flipped .front {
+            display: none;
+        }
+        .pro-con-card.flipped .back {
+            display: block;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 300px;
+            max-height: 400px;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 400px;
+            }
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+<div class="flex flex-col md:flex-row min-h-screen">
+    <!-- Sidebar Navigation -->
+    <aside class="w-full md:w-64 bg-white/80 backdrop-blur-sm border-r border-gray-200/80 p-4 md:p-6 md:sticky md:top-0 md:h-screen">
+        <h1 class="text-2xl font-bold text-gray-800 mb-6">Mutual Funds 101</h1>
+        <nav id="main-nav" class="space-y-2">
+            <a href="#welcome" class="nav-link flex items-center p-3 rounded-lg">
+                <span class="mr-3 text-lg">💡</span> The Big Idea
+            </a>
+            <a href="#how-it-works" class="nav-link flex items-center p-3 rounded-lg">
+                <span class="mr-3 text-lg">⚙️</span> How It Works
+            </a>
+            <a href="#pros-cons" class="nav-link flex items-center p-3 rounded-lg">
+                <span class="mr-3 text-lg">⚖️</span> Pros & Cons
+            </a>
+            <a href="#fund-types" class="nav-link flex items-center p-3 rounded-lg">
+                <span class="mr-3 text-lg">🗂️</span> Find Your Fit
+            </a>
+            <a href="#active-passive" class="nav-link flex items-center p-3 rounded-lg">
+                <span class="mr-3 text-lg">⚔️</span> The Big Debate
+            </a>
+            <a href="#costs" class="nav-link flex items-center p-3 rounded-lg">
+                <span class="mr-3 text-lg">💸</span> The Cost of Investing
+            </a>
+             <a href="#getting-started" class="nav-link flex items-center p-3 rounded-lg">
+                <span class="mr-3 text-lg">🚀</span> Getting Started
+            </a>
+        </nav>
+        <div class="mt-8 pt-6 border-t border-gray-200 text-xs text-gray-500">
+            <p>This interactive guide demystifies mutual funds for beginners in the USA. Explore concepts at your own pace.</p>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 p-6 sm:p-8 md:p-12">
+        <!-- Welcome Section -->
+        <section id="welcome" class="content-section">
+            <h2 class="text-4xl font-bold text-gray-800 mb-4">What is a Mutual Fund, Really?</h2>
+            <p class="text-lg text-gray-600 mb-8">A mutual fund is simply a company that pools money from many people and invests it in a wide variety of assets, like stocks and bonds. Instead of buying one stock, you buy a share of the fund, instantly owning a small piece of everything the fund holds. This section explains this core idea with a few simple analogies.</p>
+            <div class="grid md:grid-cols-3 gap-6">
+                <div class="card text-center">
+                    <span class="text-6xl mb-4 block">🥧</span>
+                    <h3 class="text-xl font-semibold mb-2">The Apple Pie Analogy</h3>
+                    <p class="text-gray-600">Imagine baking a gourmet pie that needs ten rare apples. Buying them all yourself is expensive. Instead, you and your friends chip in and hire a professional baker who buys in bulk. The mutual fund is the delicious, professionally-made pie you all get to share, at a fraction of the cost.</p>
+                </div>
+                <div class="card text-center">
+                    <span class="text-6xl mb-4 block">🧺</span>
+                    <h3 class="text-xl font-semibold mb-2">The Fruit Basket Analogy</h3>
+                    <p class="text-gray-600">If you buy one apple and it's bad, your entire fruit purchase is a loss. But if you buy a fruit basket with many different fruits, one bad apple doesn't ruin everything. A mutual fund is like that fruit basket—a single purchase that spreads your risk across many different investments.</p>
+                </div>
+                 <div class="card text-center">
+                    <span class="text-6xl mb-4 block">🚐</span>
+                    <h3 class="text-xl font-semibold mb-2">The Carpool Analogy</h3>
+                    <p class="text-gray-600">Driving to work alone is costly and stressful. Instead, you could hire a professional carpool service, sharing the cost with others. The mutual fund is the carpool service, pooling resources to hire a professional driver (the fund manager) for a shared journey toward your financial goals.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- How It Works Section -->
+        <section id="how-it-works" class="content-section">
+            <h2 class="text-4xl font-bold text-gray-800 mb-4">The Engine Room</h2>
+             <p class="text-lg text-gray-600 mb-8">Mutual funds have a specific, regulated way of operating that makes them different from individual stocks. This section covers the two most important mechanics: what a "share" really is and how a fund's price is calculated just once per day.</p>
+            <div class="space-y-8">
+                <div class="card">
+                    <h3 class="text-2xl font-semibold mb-3">What You Actually Own: A Slice of the Pie</h3>
+                    <p class="text-gray-600">When you invest in a mutual fund, you're not buying shares of Apple or Amazon directly. You are buying <span class="font-semibold text-teal-600">shares of the mutual fund itself</span>. Each share represents a proportional slice of ownership in the fund's *entire* portfolio. If a fund owns 100 stocks, one share of the fund gives you a tiny piece of all 100.</p>
+                </div>
+                <div class="card">
+                    <h3 class="text-2xl font-semibold mb-3">The Daily Ritual: Net Asset Value (NAV)</h3>
+                    <p class="text-gray-600 mb-4">Unlike stocks, which trade all day, a mutual fund's price is set only once per day after the market closes (4 p.m. ET). This price is called the Net Asset Value (NAV).</p>
+                    <div class="bg-gray-100 p-4 rounded-lg text-center">
+                        <p class="text-gray-700 font-mono text-lg">(Total Value of All Investments - Fund's Liabilities) ÷ Total Number of Shares = NAV per Share</p>
+                    </div>
+                     <p class="text-gray-600 mt-4">All buy and sell orders placed during the day are executed at this single end-of-day price. This design encourages long-term investing over short-term speculation.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Pros & Cons Section -->
+        <section id="pros-cons" class="content-section">
+            <h2 class="text-4xl font-bold text-gray-800 mb-4">Weighing the Trade-Offs</h2>
+            <p class="text-lg text-gray-600 mb-8">Every investment has advantages and corresponding disadvantages. Mutual funds offer powerful benefits, but it's crucial to understand the trade-offs. Click on each advantage to see the other side of the coin.</p>
+            <div id="pro-con-grid" class="grid md:grid-cols-2 gap-6">
+                <!-- Cards will be injected by JS -->
+            </div>
+        </section>
+
+        <!-- Fund Types Section -->
+        <section id="fund-types" class="content-section">
+            <h2 class="text-4xl font-bold text-gray-800 mb-4">Find Your Fit: What's Your Goal?</h2>
+            <p class="text-lg text-gray-600 mb-8">There isn't one "best" mutual fund; there are different types for different goals. To find the right fit, start by asking what you want your money to do. Select a goal below to see the type of fund designed to meet it.</p>
+            <div id="fund-type-filters" class="flex flex-wrap gap-3 mb-8">
+                <!-- Filters will be injected by JS -->
+            </div>
+            <div id="fund-type-display" class="card min-h-[250px] flex items-center justify-center">
+                <!-- Display will be updated by JS -->
+            </div>
+        </section>
+
+        <!-- Active vs. Passive Section -->
+        <section id="active-passive" class="content-section">
+            <h2 class="text-4xl font-bold text-gray-800 mb-4">The Great Debate: Active vs. Passive</h2>
+            <p class="text-lg text-gray-600 mb-8">This is one of the most important concepts in modern investing. Do you hire a manager to try and <span class="font-semibold text-teal-600">beat the market</span> (Active), or do you simply aim to <span class="font-semibold text-orange-600">match the market</span> as cheaply as possible (Passive)? The answer has huge implications for your long-term returns.</p>
+            <div class="grid md:grid-cols-2 gap-8">
+                <div class="p-6 border-2 border-teal-500 rounded-lg bg-teal-50/50">
+                    <h3 class="text-2xl font-bold text-teal-700 mb-3">Active Management</h3>
+                    <p class="font-semibold mb-2">Goal: Beat the market.</p>
+                    <p class="text-gray-600 mb-4">A professional manager actively picks investments they believe will outperform. They can react to market changes, potentially protecting against downturns.</p>
+                    <p class="font-semibold text-red-600">The Catch: Higher fees are required to pay for the expertise, which creates a high hurdle to overcome.</p>
+                </div>
+                <div class="p-6 border-2 border-orange-500 rounded-lg bg-orange-50/50">
+                    <h3 class="text-2xl font-bold text-orange-700 mb-3">Passive (Index) Management</h3>
+                    <p class="font-semibold mb-2">Goal: Match the market.</p>
+                    <p class="text-gray-600 mb-4">The fund simply buys all the investments in a specific market index (like the S&P 500) and holds them. It's an automated, hands-off approach.</p>
+                    <p class="font-semibold text-green-600">The Benefit: Extremely low costs, transparency, and tax efficiency.</p>
+                </div>
+            </div>
+            <div class="card mt-8">
+                <h3 class="text-xl font-semibold mb-4 text-center">The Verdict: The Surprising Reality</h3>
+                <p class="text-gray-600 mb-4 text-center">Investors pay higher fees for active funds hoping for better returns. However, decades of data show the opposite is usually true over the long term, primarily because of costs.</p>
+                 <div class="chart-container mx-auto" style="height: 250px; max-height: 250px;">
+                    <canvas id="passive-performance-chart"></canvas>
+                </div>
+                <p class="text-xs text-gray-500 text-center mt-2">Data Source: S&P SPIVA Reports. Chart is illustrative of consistent findings.</p>
+            </div>
+        </section>
+
+        <!-- Costs Section -->
+        <section id="costs" class="content-section">
+            <h2 class="text-4xl font-bold text-gray-800 mb-4">The Devastating Power of Fees</h2>
+            <p class="text-lg text-gray-600 mb-8">Of all the factors in investing, the one you can control the most is cost. A fee that seems tiny, like 1%, can have a massive impact on your wealth over time because it doesn't just reduce your return this year—it reduces the amount of money you have to grow in all future years. Use the calculator below to see for yourself.</p>
+            
+            <div class="card">
+                <div class="grid md:grid-cols-3 gap-6 mb-6">
+                    <div>
+                        <label for="initial-investment" class="block text-sm font-medium text-gray-700">Initial Investment</label>
+                        <input type="text" id="initial-investment-text" value="$10,000" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 sm:text-sm">
+                    </div>
+                    <div>
+                        <label for="investment-years" class="block text-sm font-medium text-gray-700">Investment Years: <span id="years-label" class="font-bold text-teal-600">40</span></label>
+                        <input type="range" id="investment-years" min="10" max="50" value="40" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                    </div>
+                    <div>
+                        <label for="annual-fee" class="block text-sm font-medium text-gray-700">Your Fund's Annual Fee: <span id="fee-label" class="font-bold text-teal-600">1.25%</span></label>
+                        <input type="range" id="annual-fee" min="0.05" max="2.0" step="0.01" value="1.25" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <canvas id="fee-chart"></canvas>
+                </div>
+                 <div class="mt-6 text-center">
+                     <p class="text-lg text-gray-600">After <span id="summary-years" class="font-bold">40</span> years, your investment would be worth:</p>
+                    <div class="flex justify-center items-center gap-8 mt-4">
+                        <div>
+                            <p class="text-sm text-gray-500">With a Low 0.25% Fee</p>
+                            <p id="low-fee-value" class="text-3xl font-bold text-green-600">$198,421</p>
+                        </div>
+                         <div>
+                            <p class="text-sm text-gray-500">With Your <span id="summary-fee">1.25%</span> Fee</p>
+                            <p id="high-fee-value" class="text-3xl font-bold text-red-600">$137,296</p>
+                        </div>
+                    </div>
+                     <p id="fee-difference" class="mt-4 text-xl font-semibold bg-red-100 text-red-800 p-3 rounded-lg inline-block">That's a difference of $61,125 lost to higher fees.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Getting Started Section -->
+        <section id="getting-started" class="content-section">
+            <h2 class="text-4xl font-bold text-gray-800 mb-4">Your First Step</h2>
+            <p class="text-lg text-gray-600 mb-8">Knowledge is power, but action builds wealth. Getting started is simpler than you think. Follow these four steps to make your first mutual fund investment.</p>
+            <div class="space-y-6">
+                <div class="card flex items-start gap-6">
+                    <div class="flex-shrink-0 bg-teal-500 text-white rounded-full h-12 w-12 flex items-center justify-center font-bold text-2xl">1</div>
+                    <div>
+                        <h3 class="text-2xl font-semibold mb-2">Define Your Goals & Budget</h3>
+                        <p class="text-gray-600">What is this money for, and when will you need it? The answer determines your risk tolerance. Investing for retirement in 30 years (long-term) calls for growth-focused stock funds. Saving for a down payment in 3 years (short-term) calls for safer bond or money market funds. Decide how much you can invest regularly.</p>
+                    </div>
+                </div>
+                <div class="card flex items-start gap-6">
+                    <div class="flex-shrink-0 bg-teal-500 text-white rounded-full h-12 w-12 flex items-center justify-center font-bold text-2xl">2</div>
+                    <div>
+                        <h3 class="text-2xl font-semibold mb-2">Choose Your Account</h3>
+                        <p class="text-gray-600 mb-3">Where you invest is as important as what you invest in. Follow this priority:</p>
+                        <ul class="list-disc list-inside space-y-2 text-gray-600">
+                           <li><strong class="text-gray-800">First:</strong> A workplace 401(k) or 403(b), especially if there's an employer match. This is free money!</li>
+                           <li><strong class="text-gray-800">Next:</strong> An IRA (Traditional or Roth). These offer powerful tax advantages and more investment choices.</li>
+                           <li><strong class="text-gray-800">Then:</strong> A standard (taxable) brokerage account for any other goals or additional investing.</li>
+                        </ul>
+                         <div class="mt-4 p-4 bg-amber-100/60 border-l-4 border-amber-400 text-amber-800 rounded-r-lg">
+                            <h4 class="font-bold">The Tax Advantage</h4>
+                            <p class="text-sm">In 401(k)s and IRAs, your investments grow without being taxed on dividends or capital gains each year. This allows your money to compound much faster than in a taxable account. This is one of the biggest benefits of saving for retirement.</p>
+                        </div>
+                    </div>
+                </div>
+                 <div class="card flex items-start gap-6">
+                    <div class="flex-shrink-0 bg-teal-500 text-white rounded-full h-12 w-12 flex items-center justify-center font-bold text-2xl">3</div>
+                    <div>
+                        <h3 class="text-2xl font-semibold mb-2">Select Your Fund</h3>
+                        <p class="text-gray-600">For beginners, a <strong class="text-gray-800">low-cost, broadly diversified index fund</strong> (like an S&P 500 or Total Stock Market fund) is widely recommended as a fantastic starting point. Use your brokerage's screening tool to filter for "no-load" funds with an expense ratio below 0.20%.</p>
+                    </div>
+                </div>
+                 <div class="card flex items-start gap-6">
+                    <div class="flex-shrink-0 bg-teal-500 text-white rounded-full h-12 w-12 flex items-center justify-center font-bold text-2xl">4</div>
+                    <div>
+                        <h3 class="text-2xl font-semibold mb-2">Place Your Order</h3>
+                        <p class="text-gray-600">Enter the fund's ticker symbol (e.g., FXAIX) and the dollar amount you wish to invest. When asked, choose to <strong class="text-gray-800">automatically reinvest all distributions</strong> to maximize compounding. Your trade will be executed at the end-of-day NAV. Congratulations, you're an investor!</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const navLinks = document.querySelectorAll('#main-nav a');
+    const contentSections = document.querySelectorAll('.content-section');
+
+    const appData = {
+        proCon: [
+            { pro: 'Diversification', pro_desc: 'Spreads risk across many investments.', con: 'Dilution & Lack of Control', con_desc: 'Upside from a single winner is limited; you don\'t pick the investments.' },
+            { pro: 'Professional Management', pro_desc: 'Access to full-time experts.', con: 'Fees & Manager Risk', con_desc: 'Management isn\'t free and reduces returns; the manager can make poor decisions.' },
+            { pro: 'Accessibility & Convenience', pro_desc: 'Low minimums and automatic investing.', con: 'Overwhelming Choice', con_desc: 'Thousands of funds can be confusing, leading to "diworsification."' },
+            { pro: 'Liquidity', pro_desc: 'Easy to convert to cash on any business day.', con: 'End-of-Day Trading & Cash Drag', con_desc: 'No real-time trading; cash held for redemptions can lower returns.' }
+        ],
+        fundTypes: [
+            { id: 'growth', name: 'High Growth', icon: '📈', title: 'Stock (Equity) Funds', desc: 'These funds primarily invest in stocks for long-term growth. They have higher risk but the highest potential for long-term returns. Ideal for goals 10+ years away, like retirement.', risk: 'High' },
+            { id: 'income', name: 'Steady Income', icon: '💰', title: 'Bond (Fixed-Income) Funds', desc: 'These funds invest in bonds to generate a steady stream of income. They are generally less risky than stocks and provide stability to a portfolio.', risk: 'Low to Medium' },
+            { id: 'safety', name: 'Safety', icon: '🛡️', title: 'Money Market Funds', desc: 'These funds invest in very safe, short-term debt. Their goal is to preserve your principal while earning a little interest. Good for short-term goals or emergency funds. Note: Not FDIC insured.', risk: 'Very Low' },
+            { id: 'all-in-one', name: 'All-in-One', icon: '🧩', title: 'Balanced / Target-Date Funds', desc: 'These funds offer a pre-mixed portfolio of both stocks and bonds in a single fund. Target-Date funds automatically become more conservative as you approach your retirement date.', risk: 'Varies' }
+        ]
+    };
+
+    function navigate(hash) {
+        if (!hash) hash = '#welcome';
+
+        navLinks.forEach(link => {
+            if (link.getAttribute('href') === hash) {
+                link.classList.add('active');
+            } else {
+                link.classList.remove('active');
+            }
+        });
+
+        contentSections.forEach(section => {
+            if ('#' + section.id === hash) {
+                section.classList.add('active');
+            } else {
+                section.classList.remove('active');
+            }
+        });
+    }
+
+    // --- Navigation Handling ---
+    document.querySelector('#main-nav').addEventListener('click', function(e) {
+        if (e.target.closest('a')) {
+            e.preventDefault();
+            const hash = e.target.closest('a').getAttribute('href');
+            history.pushState(null, null, hash);
+            navigate(hash);
+        }
+    });
+
+    window.addEventListener('popstate', () => navigate(location.hash));
+
+
+    // --- Pros & Cons Section ---
+    const proConGrid = document.getElementById('pro-con-grid');
+    if (proConGrid) {
+        appData.proCon.forEach(item => {
+            const card = document.createElement('div');
+            card.className = 'card pro-con-card cursor-pointer';
+            card.innerHTML = `
+                <div class="front">
+                    <h3 class="text-2xl font-semibold mb-2 text-teal-600">${item.pro}</h3>
+                    <p class="text-gray-600">${item.pro_desc}</p>
+                    <div class="text-xs text-gray-400 mt-4">Click to see the trade-off...</div>
+                </div>
+                <div class="back">
+                    <h3 class="text-2xl font-semibold mb-2 text-red-600">${item.con}</h3>
+                    <p class="text-gray-600">${item.con_desc}</p>
+                    <div class="text-xs text-gray-400 mt-4">Click to see the advantage...</div>
+                </div>
+            `;
+            card.addEventListener('click', () => {
+                card.classList.toggle('flipped');
+            });
+            proConGrid.appendChild(card);
+        });
+    }
+
+    // --- Fund Types Section ---
+    const fundTypeFilters = document.getElementById('fund-type-filters');
+    const fundTypeDisplay = document.getElementById('fund-type-display');
+
+    if (fundTypeFilters && fundTypeDisplay) {
+        appData.fundTypes.forEach(type => {
+            const button = document.createElement('button');
+            button.className = 'fund-filter-btn px-4 py-2 rounded-full text-sm font-medium border-2 border-gray-300 bg-white hover:bg-gray-100 hover:border-gray-400 transition';
+            button.dataset.id = type.id;
+            button.innerHTML = `${type.icon} ${type.name}`;
+            button.addEventListener('click', () => {
+                updateFundDisplay(type.id);
+                document.querySelectorAll('.fund-filter-btn').forEach(btn => btn.classList.remove('bg-teal-500', 'text-white', 'border-teal-500'));
+                button.classList.add('bg-teal-500', 'text-white', 'border-teal-500');
+            });
+            fundTypeFilters.appendChild(button);
+        });
+        
+        function updateFundDisplay(id) {
+            const type = appData.fundTypes.find(t => t.id === id);
+            fundTypeDisplay.innerHTML = `
+                <div class="text-center">
+                    <span class="text-6xl mb-4 block">${type.icon}</span>
+                    <h3 class="text-2xl font-bold text-gray-800">${type.title}</h3>
+                    <div class="inline-block bg-gray-200 text-gray-700 px-3 py-1 rounded-full text-sm font-semibold my-3">Risk Level: ${type.risk}</div>
+                    <p class="text-gray-600 max-w-2xl mx-auto">${type.desc}</p>
+                </div>
+            `;
+        }
+        updateFundDisplay('growth');
+        fundTypeFilters.querySelector('[data-id="growth"]').classList.add('bg-teal-500', 'text-white', 'border-teal-500');
+    }
+
+    // --- Fee Calculator Section ---
+    const feeChartCtx = document.getElementById('fee-chart');
+    if (feeChartCtx) {
+        const initialInvestmentInput = document.getElementById('initial-investment-text');
+        const yearsSlider = document.getElementById('investment-years');
+        const feeSlider = document.getElementById('annual-fee');
+
+        let feeChart;
+
+        function calculateGrowth(initial, years, annualReturn, fee) {
+            let balance = initial;
+            const data = [];
+            for (let i = 0; i <= years; i++) {
+                data.push(balance);
+                balance = balance * (1 + annualReturn - fee);
+            }
+            return data;
+        }
+        
+        function formatCurrency(value) {
+            return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(value);
+        }
+
+        function updateChart() {
+            let initial = parseFloat(initialInvestmentInput.value.replace(/[^0-9.-]+/g,"")) || 10000;
+            const years = parseInt(yearsSlider.value);
+            const highFee = parseFloat(feeSlider.value) / 100;
+            const lowFee = 0.0025; // 0.25%
+            const annualReturn = 0.08; // 8% average return
+
+            document.getElementById('years-label').textContent = years;
+            document.getElementById('fee-label').textContent = feeSlider.value + '%';
+            
+            const highFeeData = calculateGrowth(initial, years, annualReturn, highFee);
+            const lowFeeData = calculateGrowth(initial, years, annualReturn, lowFee);
+            
+            const labels = Array.from({ length: years + 1 }, (_, i) => `Year ${i}`);
+
+            feeChart.data.labels = labels;
+            feeChart.data.datasets[0].data = lowFeeData;
+            feeChart.data.datasets[1].data = highFeeData;
+            feeChart.update();
+            
+            const finalLowFeeValue = lowFeeData[lowFeeData.length - 1];
+            const finalHighFeeValue = highFeeData[highFeeData.length - 1];
+            const difference = finalLowFeeValue - finalHighFeeValue;
+
+            document.getElementById('summary-years').textContent = years;
+            document.getElementById('summary-fee').textContent = feeSlider.value + '%';
+            document.getElementById('low-fee-value').textContent = formatCurrency(finalLowFeeValue);
+            document.getElementById('high-fee-value').textContent = formatCurrency(finalHighFeeValue);
+            document.getElementById('fee-difference').textContent = `That's a difference of ${formatCurrency(difference)} lost to higher fees.`;
+        }
+
+        feeChart = new Chart(feeChartCtx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [
+                    {
+                        label: 'Growth with Low 0.25% Fee',
+                        data: [],
+                        borderColor: '#10B981',
+                        backgroundColor: '#10B98120',
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        tension: 0.1,
+                        fill: true
+                    },
+                    {
+                        label: 'Growth with Your Fee',
+                        data: [],
+                        borderColor: '#EF4444',
+                        backgroundColor: '#EF444420',
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        tension: 0.1,
+                        fill: true
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value, index, values) {
+                                return '$' + (value / 1000) + 'k';
+                            }
+                        }
+                    },
+                    x: {
+                        ticks: {
+                            maxTicksLimit: 10
+                        }
+                    }
+                },
+                plugins: {
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false,
+                        callbacks: {
+                           label: function(context) {
+                                let label = context.dataset.label || '';
+                                if (label) {
+                                    label += ': ';
+                                }
+                                if (context.parsed.y !== null) {
+                                    label += formatCurrency(context.parsed.y);
+                                }
+                                return label;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        
+        initialInvestmentInput.addEventListener('change', () => {
+             let value = parseFloat(initialInvestmentInput.value.replace(/[^0-9.-]+/g,"")) || 10000;
+             initialInvestmentInput.value = formatCurrency(value);
+             updateChart();
+        });
+        yearsSlider.addEventListener('input', updateChart);
+        feeSlider.addEventListener('input', updateChart);
+
+        updateChart();
+    }
+    
+    // --- Active vs Passive Chart ---
+    const passiveChartCtx = document.getElementById('passive-performance-chart');
+    if(passiveChartCtx) {
+        new Chart(passiveChartCtx, {
+            type: 'bar',
+            data: {
+                labels: ['Large-Cap Funds', 'Mid-Cap Funds', 'Small-Cap Funds'],
+                datasets: [{
+                    label: '% of Active Funds Underperforming Benchmark (15-Year Period)',
+                    data: [92, 94, 91], // Illustrative data based on typical SPIVA reports
+                    backgroundColor: [
+                        'rgba(239, 68, 68, 0.6)',
+                        'rgba(239, 68, 68, 0.7)',
+                        'rgba(239, 68, 68, 0.8)',
+                    ],
+                    borderColor: [
+                        'rgba(239, 68, 68, 1)',
+                        'rgba(239, 68, 68, 1)',
+                        'rgba(239, 68, 68, 1)',
+                    ],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        beginAtZero: true,
+                        max: 100,
+                        ticks: {
+                            callback: function(value) {
+                                return value + "%"
+                            }
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                     tooltip: {
+                        callbacks: {
+                           label: function(context) {
+                                return ' ' + context.formattedValue + '% underperform';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // Initial navigation
+    navigate(location.hash || '#welcome');
+
+});
+</script>
+
+</body>
+</html>
